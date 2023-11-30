@@ -11,6 +11,8 @@ import android.content.Context;
 import android.nfc.Tag;
 import android.util.Log;
 
+import androidx.core.app.NotificationCompat;
+
 import com.concordia.defender.defender.DefenderDBHelper;
 import com.concordia.defender.defender.DefenderTask;
 import com.concordia.defender.model.CPUUsage;
@@ -25,7 +27,7 @@ public class CPUUsageCollector extends DefenderTask {
     public void doWork(Context context) {
         DefenderDBHelper defDBHelper = DefenderDBHelper.getInstance(context);
         //AIDSDBHelper aidsDBHelper = AIDSDBHelper.getInstance(context);
-
+        boolean bandera=true;
         // get cpu usage for processes
         try {
 
@@ -109,10 +111,28 @@ Antes: fin*/
                         cu.TimeStamp = System.currentTimeMillis();
                         cu.Pid = pid;
                         cu.CPUUsage = cpuUsage;
-                        Log.e("HORROR", "esteee cu.toString() " + cu.toString());
+                        Log.e("HORROR2", "esteee cu.toString() " + cu.toString());
+                        // pop up window
+
+                    //float s = Float.parseFloat(cpuUsage);
+                    //
 
                         defDBHelper.insertCPUUsage(cu);
                         cabe = false;
+                    //cpuUsage.replaceAll("a","");
+                    Double  valor= Double.valueOf(lis.get(8));//new Double (cpuUsage);
+                    if(valor>5.0){
+                        Log.d("HORROR3", "bandera= : "+ valor + " - "+ bandera);
+                        bandera=false;
+
+/*                        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+                                .setSmallIcon(R.drawable.notification_icon)
+                                .setContentTitle(textTitle)
+                                .setContentText(textContent)
+                                .setPriority(NotificationCompat.PRIORITY_DEFAULT);*/
+
+                    }
+
                    // }else{ cabe=true;} //borrar end
                 }
             }

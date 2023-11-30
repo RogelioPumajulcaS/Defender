@@ -15,6 +15,7 @@ import android.util.Log;
 import com.concordia.defender.model.Event;
 import com.concordia.defender.model.Process;
 import com.concordia.defender.model.CPUUsage;
+import com.concordia.defender.model.IEModel;
 public class DefenderDBHelper extends SQLiteOpenHelper {
     private final String TAG = DefenderDBHelper.class.getName();
 
@@ -50,7 +51,24 @@ public class DefenderDBHelper extends SQLiteOpenHelper {
             + " TEXT " + ");";
 
 
+    // table for IEModel, to hold cumulative resources
+    // fromts, tots, processname, lowcpu, midcpu, highcpu
+    private static final String IEMODEL_TABLE_NAME = "iemodel";
+    private static final String IEMODEL_FROM_TS = "fromts";
+    private static final String IEMODEL_TO_TS = "tots";
+    private static final String IEMODEL_AGE = "age";
+    private static final String IEMODEL_CPU_LOW = "cpu_low";
+    private static final String IEMODEL_CPU_MID = "cpu_mid";
+    private static final String IEMODEL_CPU_HIGH = "cpu_high";
+    private static final String IEMODEL_CPU_COUNTER = "cpu_counter";
 
+    private static final String IEMODEL_TABLE_CREATE = "CREATE TABLE "
+            + IEMODEL_TABLE_NAME + " (" + ID + " INTEGER PRIMARY KEY,"
+            + IEMODEL_FROM_TS + " int," + IEMODEL_TO_TS + " int, "
+            + PROCESS_NAME + " TEXT, " + IEMODEL_CPU_LOW + " int, "
+            + IEMODEL_CPU_MID + " int, " + IEMODEL_CPU_HIGH + " int, "
+            + IEMODEL_CPU_COUNTER + " int, " + IEMODEL_AGE + " int "
+            + ");";
 
 
     // events table, collecting platform events such as screen on/off toggle and
@@ -78,6 +96,7 @@ public class DefenderDBHelper extends SQLiteOpenHelper {
         db.execSQL(PROCESS_TABLE_CREATE);
         db.execSQL(CPUUSAGE_TABLE_CREATE);
         db.execSQL(EVENT_TABLE_CREATE);
+        db.execSQL(IEMODEL_TABLE_CREATE);
     }
 
     @Override
@@ -239,6 +258,134 @@ public class DefenderDBHelper extends SQLiteOpenHelper {
         return cpuList;
     }
 
+    // get IEModel for process
+    public IEModel getIEModel(String pName) {
+        SQLiteDatabase aidsDB = this.getReadableDatabase();
+
+        SQLiteCursor cursor = (SQLiteCursor) aidsDB.query(IEMODEL_TABLE_NAME,
+                new String[] { IEMODEL_FROM_TS, IEMODEL_TO_TS, IEMODEL_CPU_LOW,
+                        IEMODEL_CPU_MID, IEMODEL_CPU_HIGH, ID,
+                        IEMODEL_CPU_COUNTER, IEMODEL_AGE
+                         },
+                PROCESS_NAME + "=?", new String[] { pName }, null, null, null);
+
+        if (cursor.getCount() == 0) {
+            return null;
+        }
+
+        cursor.moveToFirst(); // only one model for process is expected
+
+        IEModel iem = new IEModel();
+        iem.ProcessName = pName;
+        iem.FromTimeStamp = cursor.getLong(0);
+        iem.ToTimeStamp = cursor.getLong(1);
+        iem.CPULow = cursor.getInt(2);
+        iem.CPUMid = cursor.getInt(3);
+        iem.CPUHigh = cursor.getInt(4);
+        iem.ID = cursor.getInt(5);
+        iem.CPUCounter = cursor.getInt(6);
+        iem.Age = cursor.getInt(7);
+        iem.RxBytes = cursor.getInt(8);
+        iem.TxBytes = cursor.getInt(9);
+
+        cursor.close();
+
+        return iem;
+    }
+
+    // get all IEModels
+    public List<IEModel> getIEModel() {
+        SQLiteDatabase aidsDB = this.getReadableDatabase();
+        ArrayList<IEModel> ieModelList = new ArrayList<IEModel>();
+
+        SQLiteCursor cursor = (SQLiteCursor) aidsDB.query(IEMODEL_TABLE_NAME,
+                new String[] { IEMODEL_FROM_TS, IEMODEL_TO_TS, IEMODEL_CPU_LOW,
+                        IEMODEL_CPU_MID, IEMODEL_CPU_HIGH, ID,
+                        IEMODEL_CPU_COUNTER, PROCESS_NAME, IEMODEL_AGE
+                         }, null,
+                null, null, null, null);
+
+        if (cursor.getCount() == 0) {
+            return ieModelList;
+        }
+
+        while (cursor.moveToNext()) {
+            IEModel iem = new IEModel();
+            iem.FromTimeStamp = cursor.getLong(0);
+            iem.ToTimeStamp = cursor.getLong(1);
+            iem.CPULow = cursor.getInt(2);
+            iem.CPUMid = cursor.getInt(3);
+            iem.CPUHigh = cursor.getInt(4);
+            iem.ID = cursor.getInt(5);
+            iem.CPUCounter = cursor.getInt(6);
+            iem.ProcessName = cursor.getString(7);
+            iem.Age = cursor.getInt(8);
+            iem.RxBytes = cursor.getInt(9);
+            iem.TxBytes = cursor.getInt(10);
+
+            ieModelList.add(iem);
+        }
+
+        cursor.close();
+
+        return ieModelList;
+    }
+
+    public boolean updateIEModel(IEModel iem) {
+        SQLiteDatabase aidsDB = this.getWritableDatabase();
+
+        ContentValues values = new ContentValues();
+
+        values.put(IEMODEL_FROM_TS, iem.FromTimeStamp);
+        values.put(IEMODEL_TO_TS, iem.ToTimeStamp);
+        values.put(PROCESS_NAME, iem.ProcessName);
+        values.put(IEMODEL_CPU_LOW, iem.CPULow);
+        values.put(IEMODEL_CPU_MID, iem.CPUMid);
+        values.put(IEMODEL_CPU_HIGH, iem.CPUHigh);
+        values.put(IEMODEL_CPU_COUNTER, iem.CPUCounter);
+        values.put(IEMODEL_AGE, iem.Age);
+
+
+        int affectedRows = aidsDB.update(IEMODEL_TABLE_NAME, values, ID + "=?",
+                new String[] { String.valueOf(iem.ID) });
+
+        if (affectedRows != 1) {
+            return false;
+        }
+
+        return true;
+    }
+
+    public boolean insertIEModel(IEModel iem) {
+        SQLiteDatabase aidsDB = this.getWritableDatabase();
+
+        long insertedID = 0;
+        ContentValues values = new ContentValues();
+
+        values.put(IEMODEL_FROM_TS, iem.FromTimeStamp);
+        values.put(IEMODEL_TO_TS, iem.ToTimeStamp);
+        values.put(PROCESS_NAME, iem.ProcessName);
+        values.put(IEMODEL_CPU_LOW, iem.CPULow);
+        values.put(IEMODEL_CPU_MID, iem.CPUMid);
+        values.put(IEMODEL_CPU_HIGH, iem.CPUHigh);
+        values.put(IEMODEL_CPU_COUNTER, iem.CPUCounter);
+        values.put(IEMODEL_AGE, iem.Age);
+
+
+        try {
+            aidsDB.beginTransaction();
+            insertedID = aidsDB.insert(IEMODEL_TABLE_NAME, null, values);
+            aidsDB.setTransactionSuccessful();
+        } finally {
+            aidsDB.endTransaction();
+        }
+
+        if (insertedID == -1) {
+            return false;
+        }
+
+        return true;
+    }
 
 
     public boolean resetAllData() {
